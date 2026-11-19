@@ -1,3 +1,4 @@
+import json
 import os
 from pathlib import Path
 import subprocess
@@ -61,6 +62,17 @@ class InstallerTests(unittest.TestCase):
         amp_js = self.webroot / "Scripts" / "AMP.js"
         html = self.webroot / "AMP.html"
         self.assertTrue(locale.is_file())
+        installed_locale = json.loads(locale.read_text(encoding="utf-8"))
+        expected_setup_strings = {
+            "AMP First Time Setup": "Configuração inicial do AMP",
+            "Welcome to": "Bem-vindo ao",
+            "Please click Next >> to continue setup.": "Clique em Avançar >> para continuar a configuração.",
+            "Next >>": "Avançar >>",
+            "Default Authentication Server": "Servidor de autenticação padrão",
+            "Re-run Setup": "Executar a configuração novamente",
+        }
+        for key, value in expected_setup_strings.items():
+            self.assertEqual(installed_locale["Strings"].get(key), value)
         self.assertIn("startLocaleObserver", locale_js.read_text(encoding="utf-8"))
         self.assertIn("replaceWithNonBreakingSpace(Locale.l(displayName))", amp_js.read_text(encoding="utf-8"))
         saved_html = html.read_text(encoding="utf-8")

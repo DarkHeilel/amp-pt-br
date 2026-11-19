@@ -1724,6 +1724,12 @@
     "Container Path": "Caminho no contêiner",
     ". Make sure you're not using any of these names as an AMP username to login.": ". Confira se você não usa nenhum desses nomes como nome de usuário no AMP.",
     "AMP Version Mismatch": "Incompatibilidade de versão do AMP",
-    "The AMP frontend that has been loaded ({frontendVersion}) does not match the backend ({backendVersion}). Please clear your browser cache (or force reload with CTRL+F5) as well as any upstream proxy caches.": "A versão da interface do AMP carregada (v{frontendVersion}) não corresponde à do servidor (v{backendVersion}). Limpe o cache do navegador (ou force a atualização com Ctrl+F5) e também o cache de proxies intermediários."
+    "The AMP frontend that has been loaded ({frontendVersion}) does not match the backend ({backendVersion}). Please clear your browser cache (or force reload with CTRL+F5) as well as any upstream proxy caches.": "A versão da interface do AMP carregada (v{frontendVersion}) não corresponde à do servidor (v{backendVersion}). Limpe o cache do navegador (ou force a atualização com Ctrl+F5) e também o cache de proxies intermediários.",
+    "AMP First Time Setup": "Configuração inicial do AMP",
+    "Welcome to": "Bem-vindo ao",
+    "Please click Next >> to continue setup.": "Clique em Avançar >> para continuar a configuração.",
+    "Next >>": "Avançar >>",
+    "Default Authentication Server": "Servidor de autenticação padrão",
+    "Re-run Setup": "Executar a configuração novamente"
   }
 }
