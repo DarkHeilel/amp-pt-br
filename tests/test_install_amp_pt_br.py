@@ -26,7 +26,8 @@ LOCALE_JS = '''const Locale = (function () {
     return obj;
 })();
 '''
-AMP_HTML = '''<script src="/Scripts/AMP.js?v=2.8.0.10"></script>
+AMP_HTML = '''<script src="/Scripts/Locale.js?v=2.8.0.10" defer></script>
+<script src="/Scripts/AMP.js?v=2.8.0.10"></script>
 <script src="/Scripts/AMP.js?v=2.8.0.10"></script>
 '''
 
@@ -62,11 +63,28 @@ class InstallerTests(unittest.TestCase):
         self.assertTrue(locale.is_file())
         self.assertIn("startLocaleObserver", locale_js.read_text(encoding="utf-8"))
         self.assertIn("replaceWithNonBreakingSpace(Locale.l(displayName))", amp_js.read_text(encoding="utf-8"))
-        self.assertEqual(html.read_text(encoding="utf-8").count("ptbr=1"), 2)
+        saved_html = html.read_text(encoding="utf-8")
+        self.assertEqual(saved_html.count("ptbr=1"), 3)
+        self.assertIn('/Scripts/Locale.js?v=2.8.0.10&amp;ptbr=1"', saved_html)
         self.assertEqual(len(list(self.webroot.rglob("*.bak.*"))), 3)
         repeated = self.run_installer()
         self.assertEqual(repeated.returncode, 0, repeated.stdout + repeated.stderr)
         self.assertIn("nada foi alterado", repeated.stdout)
+
+    def test_refreshes_locale_url_after_previous_installer_run(self):
+        first = self.run_installer()
+        self.assertEqual(first.returncode, 0, first.stdout + first.stderr)
+        html = self.webroot / "AMP.html"
+        saved_html = html.read_text(encoding="utf-8")
+        self.assertIn('/Scripts/Locale.js?v=2.8.0.10&amp;ptbr=1"', saved_html)
+        html.write_text(saved_html.replace(
+            '/Scripts/Locale.js?v=2.8.0.10&amp;ptbr=1"',
+            '/Scripts/Locale.js?v=2.8.0.10"',
+        ), encoding="utf-8")
+        result = self.run_installer()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('/Scripts/Locale.js?v=2.8.0.10&amp;ptbr=1"', html.read_text(encoding="utf-8"))
+        self.assertIn("Locale.js", result.stdout)
 
     def test_unrecognized_locale_observer_fails_without_changes(self):
         path = self.webroot / "Scripts" / "Locale.js"

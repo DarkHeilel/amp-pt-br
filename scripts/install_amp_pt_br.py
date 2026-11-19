@@ -31,6 +31,9 @@ ORIGINAL_REF = '/Scripts/AMP.js?v=2.8.0.10'
 OLD_REF = '/Scripts/AMP.js?v=2.8.0.10-ptbr-category1'
 # Keep the AMP-owned version parameter exact; use a separate cache-busting parameter.
 NEW_REF = '/Scripts/AMP.js?v=2.8.0.10&amp;ptbr=1'
+# Locale.js also needs a fresh URL; otherwise a browser/proxy may keep the old translator.
+ORIGINAL_LOCALE_REF = '/Scripts/Locale.js?v=2.8.0.10"'
+NEW_LOCALE_REF = '/Scripts/Locale.js?v=2.8.0.10&amp;ptbr=1"'
 OLD_CATEGORY_FIX = 'this.displayName = replaceWithNonBreakingSpace(displayName);'
 CATEGORY_FIX = 'this.displayName = replaceWithNonBreakingSpace(Locale.l(displayName));'
 OLD_WARNING_LINE = '            await UI.ShowModalAsync("AMP Version Mismatch", `The AMP frontend that has been loaded (v${versionParam}) does not match the backend (v${moduleInfo.APIVersion}). Please clear your browser cache (or force reload with CTRL+F5) as well as any upstream proxy caches.`, UI.Icons.Exclamation, UI.OKActionOnly);'
@@ -171,6 +174,15 @@ if html.count(NEW_REF) != 2:
 if NEW_REF.split("?", 1)[1].split("&amp;", 1)[0] != "v=2.8.0.10":
     raise SystemExit("Parado sem alterar nada: o parâmetro de versão não corresponde ao backend.")
 
+original_locale_ref_count = html.count(ORIGINAL_LOCALE_REF)
+new_locale_ref_count = html.count(NEW_LOCALE_REF)
+if original_locale_ref_count == 1 and new_locale_ref_count == 0:
+    html = html.replace(ORIGINAL_LOCALE_REF, NEW_LOCALE_REF, 1)
+elif original_locale_ref_count == 0 and new_locale_ref_count == 1:
+    pass  # Cache URL already refreshed; safe to rerun.
+else:
+    raise SystemExit(f"Parado sem alterar nada: referência de Locale.js inesperada (original={original_locale_ref_count}, corrigida={new_locale_ref_count}).")
+
 new_js_bytes = (b"\xef\xbb\xbf" if js_bom else b"") + js.replace("\n", js_nl).encode("utf-8")
 new_locale_js_bytes = (b"\xef\xbb\xbf" if locale_js_bom else b"") + locale_js.replace("\n", locale_js_nl).encode("utf-8")
 new_html_bytes = (b"\xef\xbb\xbf" if html_bom else b"") + html.replace("\n", html_nl).encode("utf-8")
@@ -231,6 +243,7 @@ try:
     saved_locale = json.loads(LOCALE.read_text(encoding="utf-8-sig"))
     saved_strings = saved_locale["Strings"]
     parsed_refs = [parse_qs(urlsplit(unescape(ref)).query) for ref in re.findall(r'(?:src|href)="([^" ]*AMP\.js\?[^" ]*)"', saved_html)]
+    parsed_locale_refs = [parse_qs(urlsplit(unescape(ref)).query) for ref in re.findall(r'(?:src|href)="([^" ]*Locale\.js\?[^" ]*)"', saved_html)]
     valid = (
         CATEGORY_FIX in saved_js
         and NEW_WARNING_BLOCK in saved_js
@@ -238,6 +251,9 @@ try:
         and saved_html.count(NEW_REF) == 2
         and len(parsed_refs) == 2
         and all(ref.get("v") == ["2.8.0.10"] and ref.get("ptbr") == ["1"] for ref in parsed_refs)
+        and saved_html.count(NEW_LOCALE_REF) == 1
+        and len(parsed_locale_refs) == 1
+        and all(ref.get("v") == ["2.8.0.10"] and ref.get("ptbr") == ["1"] for ref in parsed_locale_refs)
         and saved_strings.get("Monitoring and Metrics") == "Monitoramento e métricas"
         and all(saved_strings.get(k) == v for k, v in TRANSLATIONS.items())
     )
@@ -257,8 +273,8 @@ except Exception as exc:
             shutil.copy2(backup, path)
     raise SystemExit(f"Verificação final falhou; restaurei os arquivos pelos backups. {exc}")
 
-print("Corrigido: o parâmetro v da URL do AMP.js continua exatamente 2.8.0.10; ptbr=1 só renova o cache.")
-print("O Locale.js agora reaplica a tradução a textos dinâmicos; a aba e o aviso de incompatibilidade também estão traduzidos.")
+print("Corrigido: AMP.js e Locale.js mantêm v=2.8.0.10; ptbr=1 renova o cache dos dois scripts.")
+print("O Locale.js reaplica a tradução a textos dinâmicos; a aba e o aviso de incompatibilidade também estão traduzidos.")
 for path, backup in backups.items():
     if backup is not None:
         print(f"Backup: {backup}")

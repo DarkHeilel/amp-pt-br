@@ -5,7 +5,7 @@ Material comunitário em português brasileiro para estudar e localizar partes d
 ## Conteúdo
 
 - `locale/pt.json` — locale PT-BR adaptado; cobertura parcial.
-- `scripts/install_amp_pt_br.py` — locale e ajustes opcionais específicos para AMP 2.8.0.10, incluindo reaplicação a textos dinâmicos. Cria backups e interrompe sem alterar arquivos quando os marcadores esperados não correspondem.
+- `scripts/install_amp_pt_br.py` — locale e ajustes opcionais específicos para AMP 2.8.0.10, incluindo reaplicação a textos dinâmicos e renovação do cache dos arquivos modificados. Cria backups e interrompe sem alterar arquivos quando os marcadores esperados não correspondem.
 - `docs/guia-amp-pt-br.md` — referência técnica com fontes oficiais e relatos do fórum identificados.
 - `docs/tutorial-locale-pt-br.md` — instalação, verificação e reversão.
 

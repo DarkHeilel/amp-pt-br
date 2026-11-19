@@ -1,13 +1,13 @@
 # Tutorial: locale PT-BR no AMP 2.8.0.10
 
-Este tutorial instala o locale PT-BR e os ajustes necessários para textos dinâmicos, a aba “Monitoramento e métricas” e o aviso de incompatibilidade no AMP 2.8.0.10. O instalador preserva `v=2.8.0.10` e usa `ptbr=1` em separado para renovar o cache; aceita o AMP original e o estado já corrigido. Não use em outra versão.
+Este tutorial instala o locale PT-BR e os ajustes necessários para textos dinâmicos, a aba “Monitoramento e métricas” e o aviso de incompatibilidade no AMP 2.8.0.10. O instalador preserva `v=2.8.0.10` e usa `ptbr=1` em separado para renovar o cache dos dois scripts; aceita o AMP original e o estado já corrigido. Não use em outra versão.
 
 ## O que será alterado
 
 - `Locale/pt.json` — tradução PT-BR parcial, incluindo o aviso de incompatibilidade.
 - `Scripts/AMP.js` — traduz o nome da aba antes de inserir espaços não separáveis e localiza o aviso de incompatibilidade.
 - `Scripts/Locale.js` — observa texto e elementos adicionados ao DOM e reaplica as traduções quando o AMP monta partes dinâmicas da interface.
-- `AMP.html` — atualiza as referências ao script sem alterar a versão que o AMP compara com o servidor.
+- `AMP.html` — renova o cache de `AMP.js` e `Locale.js` sem alterar a versão que o AMP compara com o servidor.
 
 Se `Locale/pt.json` já existir, o instalador preserva chaves extras e aplica as traduções do projeto; se não existir, cria o arquivo. Faz backups dos arquivos existentes, valida o JSON e a sintaxe JavaScript e confere os trechos esperados antes e depois da instalação.
 
