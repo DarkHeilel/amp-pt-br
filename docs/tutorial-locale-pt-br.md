@@ -1,6 +1,6 @@
 # Tutorial: locale PT-BR no AMP 2.8.0.10
 
-Este tutorial instala a tradução PT-BR e o pequeno ajuste necessário para a aba “Monitoramento e métricas” no AMP 2.8.0.10. O instalador preserva `v=2.8.0.10` e usa `ptbr=1` em separado para renovar o cache; ele aceita o AMP original e o estado já corrigido no T8. Não use em outra versão.
+Este tutorial instala a tradução PT-BR e o pequeno ajuste necessário para a aba “Monitoramento e métricas” no AMP 2.8.0.10. O instalador preserva `v=2.8.0.10` e usa `ptbr=1` em separado para renovar o cache; ele aceita o AMP original e o estado já corrigido. Não use em outra versão.
 
 ## O que será alterado
 
