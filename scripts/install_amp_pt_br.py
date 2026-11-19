@@ -139,12 +139,38 @@ apply_end = locale_js.find("\n        },\n        ListLocale:", apply_start)
 if apply_start < 0 or apply_end < 0:
     raise SystemExit("Parado sem alterar nada: ApplyLocale não corresponde à estrutura esperada.")
 apply_section = locale_js[apply_start:apply_end]
-if APPLY_LOCALE_CONTEXT_BLOCK not in apply_section:
-    root_lines = list(re.finditer(r"(?m)^[ \t]*const elements = [^\n]*;[ \t]*$", apply_section))
-    if len(root_lines) != 1:
-        raise SystemExit("Parado sem alterar nada: raiz de ApplyLocale inesperada ou ambígua.")
-    match = root_lines[0]
-    apply_section = apply_section[:match.start()] + APPLY_LOCALE_CONTEXT_BLOCK + apply_section[match.end():]
+
+def has_apply_locale_context_block(source):
+    root = source.find("const root = context && context.jquery")
+    element_check = source.find("context.nodeType === Node.ELEMENT_NODE", root)
+    elements = source.find('const elements = root.find("*").addBack();', element_check)
+    return root >= 0 and element_check > root and elements > element_check
+
+def format_apply_locale_context_block(indent):
+    lines = APPLY_LOCALE_CONTEXT_BLOCK.splitlines()
+    base_indent = min(len(line) - len(line.lstrip(" \t")) for line in lines if line.strip())
+    return "\n".join(indent + line[base_indent:] if line.strip() else "" for line in lines)
+
+if not has_apply_locale_context_block(apply_section):
+    root_lines = list(re.finditer(
+        r"(?m)^(?P<indent>[ \t]*)const elements = [^\n]*;[ \t]*$", apply_section
+    ))
+    if len(root_lines) == 1:
+        match = root_lines[0]
+        replacement = format_apply_locale_context_block(match.group("indent"))
+    else:
+        # Xeon's AMP 2.8.0.10 uses this chained selector directly instead of
+        # assigning it to `const elements`, unlike the T8 frontend.
+        legacy_lines = list(re.finditer(
+            r'(?m)^(?P<indent>[ \t]*)\$\(\(context \|\| "body"\) \+ " \*"\)[ \t]*;?[ \t]*$',
+            apply_section,
+        ))
+        if len(legacy_lines) != 1:
+            raise SystemExit("Parado sem alterar nada: formato da raiz de ApplyLocale não reconhecido.")
+        match = legacy_lines[0]
+        indent = match.group("indent")
+        replacement = format_apply_locale_context_block(indent) + "\n" + indent + "elements"
+    apply_section = apply_section[:match.start()] + replacement + apply_section[match.end():]
     locale_js = locale_js[:apply_start] + apply_section + locale_js[apply_end:]
 
 observer_count = locale_js.count(LOCALE_OBSERVER_BLOCK)
@@ -265,6 +291,11 @@ except Exception as exc:
 try:
     saved_js = AMP_JS.read_text(encoding="utf-8-sig")
     saved_locale_js = LOCALE_JS.read_text(encoding="utf-8-sig")
+    saved_apply_start = saved_locale_js.find("ApplyLocale: function (context) {")
+    saved_apply_end = (saved_locale_js.find("\n        },\n        ListLocale:", saved_apply_start)
+                       if saved_apply_start >= 0 else -1)
+    saved_apply_section = (saved_locale_js[saved_apply_start:saved_apply_end]
+                           if saved_apply_end > saved_apply_start else "")
     saved_html = HTML.read_text(encoding="utf-8-sig")
     saved_locale = json.loads(LOCALE.read_text(encoding="utf-8-sig"))
     saved_strings = saved_locale["Strings"]
@@ -274,7 +305,7 @@ try:
         CATEGORY_FIX in saved_js
         and NEW_WARNING_BLOCK in saved_js
         and LOCALE_OBSERVER_BLOCK in saved_locale_js
-        and APPLY_LOCALE_CONTEXT_BLOCK in saved_locale_js
+        and has_apply_locale_context_block(saved_apply_section)
         and saved_html.count(NEW_REF) == 2
         and len(parsed_refs) == 2
         and all(ref.get("v") == ["2.8.0.10"] and ref.get("ptbr") == ["1"] for ref in parsed_refs)

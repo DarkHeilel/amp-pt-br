@@ -1,3 +1,4 @@
+import ast
 import json
 import os
 from pathlib import Path
@@ -31,6 +32,32 @@ LOCALE_JS = '''const Locale = (function () {
     return obj;
 })();
 '''
+
+def installer_string_constant(name):
+    tree = ast.parse(INSTALLER.read_text(encoding="utf-8"))
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign) and any(
+            isinstance(target, ast.Name) and target.id == name for target in node.targets
+        ):
+            return ast.literal_eval(node.value)
+    raise AssertionError(f"Missing installer constant: {name}")
+
+
+XEON_LOCALE_JS = LOCALE_JS.replace(
+    '            const elements = $((context || "body") + " *");\n            elements.each(function () {});',
+    '            $((context || "body") + " *")\n'
+    '                .contents()\n'
+    '                .filter((_, e) => e.nodeType === Node.TEXT_NODE)\n'
+    '                .each(function (_, e) {});',
+)
+XEON_LOCALE_JS = XEON_LOCALE_JS.replace(
+    "    obj.l = obj.GetLocaleMessage;",
+    "    obj.l = obj.GetLocaleMessage;\n\n" + installer_string_constant("LOCALE_OBSERVER_BLOCK"),
+    1,
+)
+if XEON_LOCALE_JS == LOCALE_JS or '$((context || "body") + " *")' not in XEON_LOCALE_JS:
+    raise AssertionError("Xeon fixture must preserve its chained ApplyLocale selector")
+
 AMP_HTML = '''<script src="/Scripts/Locale.js?v=2.8.0.10" defer></script>
 <script src="/Scripts/AMP.js?v=2.8.0.10"></script>
 <script src="/Scripts/AMP.js?v=2.8.0.10"></script>
@@ -85,6 +112,20 @@ class InstallerTests(unittest.TestCase):
         self.assertEqual(saved_html.count("ptbr=1"), 3)
         self.assertIn('/Scripts/Locale.js?v=2.8.0.10&amp;ptbr=1"', saved_html)
         self.assertEqual(len(list(self.webroot.rglob("*.bak.*"))), 3)
+        repeated = self.run_installer()
+        self.assertEqual(repeated.returncode, 0, repeated.stdout + repeated.stderr)
+        self.assertIn("nada foi alterado", repeated.stdout)
+
+    def test_xeon_chained_selector_with_existing_observer(self):
+        path = self.webroot / "Scripts" / "Locale.js"
+        path.write_text(XEON_LOCALE_JS, encoding="utf-8")
+        result = self.run_installer()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        saved = path.read_text(encoding="utf-8")
+        self.assertIn("context.nodeType === Node.ELEMENT_NODE", saved)
+        self.assertIn('const elements = root.find("*").addBack();', saved)
+        self.assertIn("elements\n                .contents()", saved)
+        self.assertEqual(saved.count("const startLocaleObserver = function () {"), 1)
         repeated = self.run_installer()
         self.assertEqual(repeated.returncode, 0, repeated.stdout + repeated.stderr)
         self.assertIn("nada foi alterado", repeated.stdout)
