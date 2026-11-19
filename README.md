@@ -11,7 +11,7 @@ Material comunitário em português brasileiro para estudar e localizar partes d
 
 ## Segurança e privacidade
 
-Este repositório contém somente os arquivos selecionados para distribuição. Capturas, logs, backups, configurações de host, endereços, usuários e credenciais foram deixados de fora. O locale também omite nomes de instância específicos do ambiente original.
+Este repositório contém somente os arquivos selecionados para distribuição. Capturas, logs, backups, configurações de host, endereços, usuários e credenciais foram deixados de fora. O locale omite valores coletados em tempo de execução que poderiam identificar o ambiente original, como informações de hardware, versão do sistema, fuso horário, plugins instalados e nomes configurados pela comunidade.
 
 O instalador modifica arquivos da interface AMP e não é um mecanismo oficial de localização. Use somente na versão descrita no tutorial, mantenha os backups e revise-o antes de qualquer atualização. A configuração depende do operador do servidor; não inclua credenciais nos comandos, issues ou commits.
 
