@@ -21,7 +21,11 @@ LOCALE_JS = '''const Locale = (function () {
     let loadedLocale = "pt";
     const obj = {
         GetLocaleMessage: function (original) { return original; },
-        ApplyLocale: function (context) { return context; },
+        ApplyLocale: function (context) {
+            const elements = $((context || "body") + " *");
+            elements.each(function () {});
+        },
+        ListLocale: function () {},
     };
     obj.l = obj.GetLocaleMessage;
     return obj;
@@ -74,6 +78,8 @@ class InstallerTests(unittest.TestCase):
         for key, value in expected_setup_strings.items():
             self.assertEqual(installed_locale["Strings"].get(key), value)
         self.assertIn("startLocaleObserver", locale_js.read_text(encoding="utf-8"))
+        self.assertIn("context.nodeType === Node.ELEMENT_NODE", locale_js.read_text(encoding="utf-8"))
+        self.assertIn('root.find("*").addBack()', locale_js.read_text(encoding="utf-8"))
         self.assertIn("replaceWithNonBreakingSpace(Locale.l(displayName))", amp_js.read_text(encoding="utf-8"))
         saved_html = html.read_text(encoding="utf-8")
         self.assertEqual(saved_html.count("ptbr=1"), 3)

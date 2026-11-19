@@ -66,6 +66,17 @@ LOCALE_OBSERVER_BLOCK = """    const startLocaleObserver = function () {
     } else {
         startLocaleObserver();
     }"""
+
+# MutationObserver passes Element nodes to ApplyLocale. Some AMP Locale.js
+# builds expect a selector string and concatenate " *", which becomes the
+# invalid jQuery selector "[object HTMLDivElement] *" for an Element.
+APPLY_LOCALE_CONTEXT_BLOCK = """            const root = context && context.jquery
+                ? context
+                : context && context.nodeType === Node.ELEMENT_NODE
+                    ? $(context)
+                    : $(context || "body");
+            const elements = root.find("*").addBack();"""
+
 TRANSLATIONS = {
     "AMP Version Mismatch": "Incompatibilidade de versão do AMP",
     "The AMP frontend that has been loaded ({frontendVersion}) does not match the backend ({backendVersion}). Please clear your browser cache (or force reload with CTRL+F5) as well as any upstream proxy caches.": "A versão da interface do AMP carregada (v{frontendVersion}) não corresponde à do servidor (v{backendVersion}). Limpe o cache do navegador (ou force a atualização com Ctrl+F5) e também o cache de proxies intermediários.",
@@ -121,6 +132,21 @@ if strings.get("Monitoring and Metrics") != "Monitoramento e métricas":
 # The AMP locale only translates current DOM text unless dynamically added text is observed.
 # Patch only the known 2.8.0.10 Locale.js API shape; refuse unfamiliar code.
 locale_anchor = "    obj.l = obj.GetLocaleMessage;"
+# Normalize ApplyLocale's root handling so both selector strings and DOM
+# elements work with the dynamic-text observer.
+apply_start = locale_js.find("ApplyLocale: function (context) {")
+apply_end = locale_js.find("\n        },\n        ListLocale:", apply_start)
+if apply_start < 0 or apply_end < 0:
+    raise SystemExit("Parado sem alterar nada: ApplyLocale não corresponde à estrutura esperada.")
+apply_section = locale_js[apply_start:apply_end]
+if APPLY_LOCALE_CONTEXT_BLOCK not in apply_section:
+    root_lines = list(re.finditer(r"(?m)^[ \t]*const elements = [^\n]*;[ \t]*$", apply_section))
+    if len(root_lines) != 1:
+        raise SystemExit("Parado sem alterar nada: raiz de ApplyLocale inesperada ou ambígua.")
+    match = root_lines[0]
+    apply_section = apply_section[:match.start()] + APPLY_LOCALE_CONTEXT_BLOCK + apply_section[match.end():]
+    locale_js = locale_js[:apply_start] + apply_section + locale_js[apply_end:]
+
 observer_count = locale_js.count(LOCALE_OBSERVER_BLOCK)
 if observer_count == 0:
     if "MutationObserver" in locale_js:
@@ -248,6 +274,7 @@ try:
         CATEGORY_FIX in saved_js
         and NEW_WARNING_BLOCK in saved_js
         and LOCALE_OBSERVER_BLOCK in saved_locale_js
+        and APPLY_LOCALE_CONTEXT_BLOCK in saved_locale_js
         and saved_html.count(NEW_REF) == 2
         and len(parsed_refs) == 2
         and all(ref.get("v") == ["2.8.0.10"] and ref.get("ptbr") == ["1"] for ref in parsed_refs)
