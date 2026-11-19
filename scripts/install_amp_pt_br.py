@@ -24,6 +24,9 @@ WEBROOT = Path(_webroot).expanduser().resolve()
 AMP_JS = WEBROOT / "Scripts/AMP.js"
 HTML = WEBROOT / "AMP.html"
 LOCALE = WEBROOT / "Locale/pt.json"
+LOCALE_SOURCE = Path(__file__).resolve().parent.parent / "locale/pt.json"
+# Accept both a clean AMP 2.8.0.10 WebRoot and the earlier T8 patch.
+ORIGINAL_REF = '/Scripts/AMP.js?v=2.8.0.10'
 OLD_REF = '/Scripts/AMP.js?v=2.8.0.10-ptbr-category1'
 # Keep the AMP-owned version parameter exact; use a separate cache-busting parameter.
 NEW_REF = '/Scripts/AMP.js?v=2.8.0.10&amp;ptbr=1'
@@ -39,22 +42,41 @@ TRANSLATIONS = {
     "The AMP frontend that has been loaded ({frontendVersion}) does not match the backend ({backendVersion}). Please clear your browser cache (or force reload with CTRL+F5) as well as any upstream proxy caches.": "A versão da interface do AMP carregada (v{frontendVersion}) não corresponde à do servidor (v{backendVersion}). Limpe o cache do navegador (ou force a atualização com Ctrl+F5) e também o cache de proxies intermediários.",
 }
 
-for path in (AMP_JS, HTML, LOCALE):
+for path in (AMP_JS, HTML):
     if path.is_symlink() or not path.is_file():
         raise SystemExit(f"Parado sem alterar nada: arquivo esperado ausente ou link simbólico: {path}")
+if LOCALE.is_symlink():
+    raise SystemExit(f"Parado sem alterar nada: locale é link simbólico: {LOCALE}")
+if not LOCALE.parent.is_dir() or LOCALE.parent.is_symlink():
+    raise SystemExit(f"Parado sem alterar nada: diretório Locale ausente ou link simbólico: {LOCALE.parent}")
+if LOCALE_SOURCE.is_symlink() or not LOCALE_SOURCE.is_file():
+    raise SystemExit(f"Parado sem alterar nada: locale do pacote ausente: {LOCALE_SOURCE}")
 
 try:
     raw_js = AMP_JS.read_bytes()
     raw_html = HTML.read_bytes()
-    raw_locale = LOCALE.read_bytes()
     js_bom = raw_js.startswith(b"\xef\xbb\xbf")
     html_bom = raw_html.startswith(b"\xef\xbb\xbf")
-    locale_bom = raw_locale.startswith(b"\xef\xbb\xbf")
     js_nl = "\r\n" if b"\r\n" in raw_js else "\n"
     html_nl = "\r\n" if b"\r\n" in raw_html else "\n"
     js = raw_js.decode("utf-8-sig").replace("\r\n", "\n")
     html = raw_html.decode("utf-8-sig").replace("\r\n", "\n")
-    locale = json.loads(raw_locale.decode("utf-8-sig"))
+    package_locale = json.loads(LOCALE_SOURCE.read_text(encoding="utf-8-sig"))
+    if LOCALE.is_file():
+        raw_locale = LOCALE.read_bytes()
+        locale_bom = raw_locale.startswith(b"\xef\xbb\xbf")
+        locale = json.loads(raw_locale.decode("utf-8-sig"))
+        if locale.get("LocaleName") != "pt" or not isinstance(locale.get("Strings"), dict):
+            raise ValueError("Locale/pt.json existente não é um locale PT válido")
+        # Apply the repository's translations while retaining extra local keys.
+        merged = dict(locale["Strings"])
+        merged.update(package_locale.get("Strings", {}))
+        locale["Strings"] = merged
+        for key, value in package_locale.items():
+            locale.setdefault(key, value)
+    else:
+        locale = package_locale
+        locale_bom = False
 except Exception as exc:
     raise SystemExit(f"Parado sem alterar nada: falha ao ler os arquivos: {exc}")
 
@@ -89,13 +111,17 @@ for key, value in TRANSLATIONS.items():
 if strings.get("Monitoring and Metrics") != "Monitoramento e métricas":
     raise SystemExit("Parado sem alterar nada: validação da tradução da aba falhou.")
 
-old_ref_count, new_ref_count = html.count(OLD_REF), html.count(NEW_REF)
-if old_ref_count == 2 and new_ref_count == 0:
+original_ref_count = html.count(ORIGINAL_REF)
+old_ref_count = html.count(OLD_REF)
+new_ref_count = html.count(NEW_REF)
+if original_ref_count == 2 and old_ref_count == 0 and new_ref_count == 0:
+    html = html.replace(ORIGINAL_REF, NEW_REF)
+elif old_ref_count == 2 and original_ref_count == 2 and new_ref_count == 0:
     html = html.replace(OLD_REF, NEW_REF)
-elif old_ref_count == 0 and new_ref_count == 2:
+elif new_ref_count == 2 and old_ref_count == 0:
     pass  # Already fixed; safe to rerun.
 else:
-    raise SystemExit(f"Parado sem alterar nada: referências AMP.js inesperadas (antiga={old_ref_count}, corrigida={new_ref_count}).")
+    raise SystemExit(f"Parado sem alterar nada: referências AMP.js inesperadas (original={original_ref_count}, antiga={old_ref_count}, corrigida={new_ref_count}).")
 if html.count(NEW_REF) != 2:
     raise SystemExit("Parado sem alterar nada: não atualizei as duas referências AMP.js.")
 # This query is what AMP's backend comparison reads; it must remain exactly 2.8.0.10.
@@ -107,7 +133,7 @@ new_html_bytes = (b"\xef\xbb\xbf" if html_bom else b"") + html.replace("\n", htm
 locale_text = json.dumps(locale, ensure_ascii=False, separators=(",", ":"))
 new_locale_bytes = (b"\xef\xbb\xbf" if locale_bom else b"") + locale_text.encode("utf-8")
 changes = {AMP_JS: new_js_bytes, HTML: new_html_bytes, LOCALE: new_locale_bytes}
-if all(path.read_bytes() == data for path, data in changes.items()):
+if all(path.is_file() and path.read_bytes() == data for path, data in changes.items()):
     print("A URL de versão, o aviso traduzido e as traduções já estão aplicados; nada foi alterado.")
     raise SystemExit(0)
 
@@ -122,10 +148,14 @@ stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
 backups, staged, replaced = {}, {}, []
 try:
     for path, data in changes.items():
-        original_stat = path.stat()
-        backup = path.with_name(path.name + ".bak." + stamp)
-        shutil.copy2(path, backup)
-        backups[path] = backup
+        if path.exists():
+            original_stat = path.stat()
+            backup = path.with_name(path.name + ".bak." + stamp)
+            shutil.copy2(path, backup)
+            backups[path] = backup
+        else:
+            original_stat = path.parent.stat()
+            backups[path] = None
         fd, temp_name = tempfile.mkstemp(prefix=path.name + ".wabi-", suffix=".tmp", dir=path.parent)
         temp_path = Path(temp_name)
         staged[path] = temp_path
@@ -140,7 +170,11 @@ try:
         replaced.append(path)
 except Exception as exc:
     for path in reversed(replaced):
-        shutil.copy2(backups[path], path)
+        backup = backups[path]
+        if backup is None:
+            path.unlink(missing_ok=True)
+        else:
+            shutil.copy2(backup, path)
     for temp_path in staged.values():
         temp_path.unlink(missing_ok=True)
     raise SystemExit(f"Falha ao instalar; restaurei os arquivos alterados pelos backups: {exc}")
@@ -168,11 +202,18 @@ try:
             raise ValueError("AMP.js salvo não passou na verificação de sintaxe: " + check.stderr)
 except Exception as exc:
     for path in reversed(replaced):
-        shutil.copy2(backups[path], path)
+        backup = backups[path]
+        if backup is None:
+            path.unlink(missing_ok=True)
+        else:
+            shutil.copy2(backup, path)
     raise SystemExit(f"Verificação final falhou; restaurei os arquivos pelos backups. {exc}")
 
 print("Corrigido: o parâmetro v da URL do AMP.js continua exatamente 2.8.0.10; ptbr=1 só renova o cache.")
 print("A chave Monitoring and Metrics continua traduzida, e AMP Version Mismatch agora tem título e mensagem em português.")
 for path, backup in backups.items():
-    print(f"Backup: {backup}")
+    if backup is not None:
+        print(f"Backup: {backup}")
+    else:
+        print(f"Criado: {path} (não existia antes; sem backup).")
 print("Recarregue o painel uma vez; limpe também qualquer cache intermediário se a versão continuar divergente.")

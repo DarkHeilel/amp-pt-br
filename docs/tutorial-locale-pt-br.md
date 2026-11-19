@@ -1,58 +1,40 @@
 # Tutorial: locale PT-BR no AMP 2.8.0.10
 
-Este tutorial instala uma tradução parcial e uma correção de compatibilidade da interface, preparada e verificada para AMP 2.8.0.10. O AMP compara a versão da interface com a do backend; por isso o instalador mantém `v=2.8.0.10` intacto e usa `ptbr=1` como parâmetro separado de cache. Não use este instalador em outra versão.
+Este tutorial instala a tradução PT-BR e o pequeno ajuste necessário para a aba “Monitoramento e métricas” no AMP 2.8.0.10. O instalador preserva `v=2.8.0.10` e usa `ptbr=1` em separado para renovar o cache; ele aceita o AMP original e o estado já corrigido no T8. Não use em outra versão.
 
 ## O que será alterado
 
-O instalador atualiza somente estes três arquivos no `WebRoot` escolhido:
-
-- `Locale/pt.json` — locale PT-BR, incluindo o aviso de incompatibilidade.
+- `Locale/pt.json` — tradução PT-BR parcial, incluindo o aviso de incompatibilidade.
 - `Scripts/AMP.js` — traduz o nome da aba antes de inserir espaços não separáveis e localiza o aviso de incompatibilidade.
-- `AMP.html` — referências ao script com parâmetro de versão compatível e um parâmetro separado para renovar o cache.
+- `AMP.html` — atualiza as referências ao script sem alterar a versão que o AMP compara com o servidor.
 
-Antes da gravação, ele cria cópias com sufixo `.bak.DATA-HORA`, valida o JSON e a sintaxe JavaScript, e confere os marcadores esperados. Se a versão/estrutura não corresponder, ele deve parar sem alterar os arquivos.
+Se `Locale/pt.json` já existir, o instalador preserva chaves extras e aplica as traduções do projeto; se não existir, cria o arquivo. Faz backups dos arquivos existentes, valida o JSON e a sintaxe JavaScript e confere os trechos esperados antes e depois da instalação.
 
 ## Pré-requisitos
 
 - AMP 2.8.0.10.
-- Acesso administrativo ao host da instância.
-- O caminho absoluto do `WebRoot` correto. Ele deve conter `AMP.html`, `Scripts/AMP.js` e `Locale/pt.json`.
-- Uma cópia segura dos arquivos atuais, além dos backups que o instalador cria.
-
-Não cole senhas, tokens, endereços privados ou saída de configuração em issues ou no repositório. Não publique capturas ou logs do host.
+- Acesso administrativo ao host.
+- O caminho absoluto do `WebRoot` correto, contendo `AMP.html`, `Scripts/AMP.js` e a pasta `Locale`.
 
 ## Instalação
 
-1. Baixe/clône este repositório no host ou transfira os dois arquivos necessários por um canal seguro. Não altere o caminho do AMP até confirmar que corresponde à instância pretendida.
-2. Defina `AMP_WEBROOT` como o caminho absoluto do diretório `WebRoot`, sem substituir os sinais de `<` e `>` por texto literal:
+No terminal do host, cole o bloco abaixo. Substitua o caminho de exemplo pelo `WebRoot` correto da sua instalação:
 
-   ```sh
-   AMP_WEBROOT="/caminho/absoluto/para/WebRoot"
-   ```
+```sh
+set -e
+TMP_DIR="$(mktemp -d)"
+trap 'rm -rf "$TMP_DIR"' EXIT
+curl -fL 'https://github.com/DarkHeilel/amp-pt-br/archive/refs/heads/main.tar.gz' -o "$TMP_DIR/repo.tar.gz"
+tar -xzf "$TMP_DIR/repo.tar.gz" -C "$TMP_DIR"
+sudo env AMP_WEBROOT="/caminho/absoluto/para/WebRoot" python3 "$TMP_DIR/amp-pt-br-main/scripts/install_amp_pt_br.py"
+```
 
-3. Execute o instalador como administrador, passando a variável explicitamente:
-
-   ```sh
-   sudo env AMP_WEBROOT="/caminho/absoluto/para/WebRoot" python3 scripts/install_amp_pt_br.py
-   ```
-
-4. Leia a saída. Ela deve confirmar o parâmetro de versão intacto e informar os caminhos dos backups. Se aparecer “Parado sem alterar nada”, interrompa: não force a edição nem repita em outra versão.
-5. Recarregue a interface com `Ctrl+F5`. Se houver proxy reverso ou cache intermediário, limpe também esse cache. O aviso de incompatibilidade continua em inglês até o locale PT-BR carregar.
-6. Confirme que a aba aparece como **Monitoramento e métricas** e que o painel abre sem o aviso “AMP Version Mismatch”.
+Leia a saída: ela informa os backups. Se disser “Parado sem alterar nada”, interrompa e não force a edição. Depois, recarregue o painel uma vez com `Ctrl+F5`. Confirme que a aba aparece como **Monitoramento e métricas** e o painel abre sem o aviso de incompatibilidade.
 
 ## Reversão
 
-Use os caminhos de backup impressos pelo instalador; escolha o conjunto da execução que deseja desfazer. Substitua cada marcador pelo caminho exato, sem usar curingas:
-
-```sh
-WEBROOT="/caminho/absoluto/para/WebRoot"
-sudo cp -a "$WEBROOT/AMP.html.bak.DATA-HORA" "$WEBROOT/AMP.html"
-sudo cp -a "$WEBROOT/Scripts/AMP.js.bak.DATA-HORA" "$WEBROOT/Scripts/AMP.js"
-sudo cp -a "$WEBROOT/Locale/pt.json.bak.DATA-HORA" "$WEBROOT/Locale/pt.json"
-```
-
-Depois, recarregue a interface e limpe caches intermediários. Não remova os backups até confirmar que a versão anterior voltou.
+Use somente os backups exatos impressos na saída da instalação. Restaure `AMP.html` e `Scripts/AMP.js` a partir dos respectivos backups. Se o instalador criou `Locale/pt.json` porque não existia antes, remova esse arquivo criado; se ele atualizou um `pt.json` existente, restaure o backup correspondente. Não use curingas. Mantenha os backups até confirmar que a versão anterior voltou.
 
 ## Atualizações futuras
 
-Uma atualização do AMP pode substituir os arquivos modificados ou alterar os trechos que o instalador reconhece. Não execute o instalador novamente só porque uma tela mudou: primeiro confirme a versão instalada e revise as notas da release e os arquivos atuais. O instalador foi preparado para recusar estruturas inesperadas; não remova essas verificações para fazê-lo continuar.
+Uma atualização do AMP pode substituir os arquivos modificados ou alterar os trechos que o instalador reconhece. Antes de repetir, confirme a versão e revise os arquivos; o instalador deve recusar estruturas inesperadas. Não remova essas verificações para fazê-lo continuar.
