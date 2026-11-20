@@ -7,7 +7,11 @@ Material comunitário em português brasileiro para estudar e localizar partes d
 - `locale/pt.json` — locale PT-BR adaptado; cobertura parcial, incluindo as telas iniciais de configuração do AMP.
 - `scripts/install_amp_pt_br.py` — locale e ajustes opcionais específicos para AMP 2.8.0.10, incluindo reaplicação a textos dinâmicos e renovação do cache dos arquivos modificados. Cria backups e interrompe sem alterar arquivos quando os marcadores esperados não correspondem.
 - `docs/guia-amp-pt-br.md` — referência técnica com fontes oficiais e relatos do fórum identificados.
-- `docs/tutorial-locale-pt-br.md` — instalação, verificação e reversão.
+- `docs/tutorial-locale-pt-br.md` — instalação por WebRoot, abertura com `?lang=pt`, verificação e reversão.
+
+## Usar o locale
+
+Depois de instalar, acrescente `?lang=pt` ao fim do endereço AMP completo (por exemplo, `https://amp.exemplo.org/configuration/instancedeployment?lang=pt`). O idioma pertence à URL da página; não insira o parâmetro entre o domínio e o caminho. Cada host mantém seu próprio `WebRoot`, portanto execute o instalador separadamente em cada painel que deseja atualizar. Veja o [tutorial](docs/tutorial-locale-pt-br.md) para o procedimento completo.
 
 ## Segurança e privacidade
 

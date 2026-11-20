@@ -295,6 +295,8 @@ O diretório `locale/pt.json` reúne a tradução PT-BR preparada para esta inte
 
 O instalador opcional dá suporte somente ao AMP 2.8.0.10 com os trechos de interface esperados. Ele preserva o parâmetro de versão que o AMP compara com o backend, adiciona um parâmetro separado para renovar o cache e cria backups antes de substituir arquivos. É uma adaptação local, não um recurso oficial da CubeCoders; confira o tutorial e não aplique após uma atualização sem revalidar a versão.
 
+Para abrir uma página em português, acrescente `?lang=pt` ao fim do endereço completo, depois do caminho — por exemplo, `/configuration/instancedeployment?lang=pt`. Se já houver parâmetros na URL, use `&lang=pt`. O seletor de idioma e os arquivos do locale são locais a cada painel: Controller e Target não compartilham automaticamente seus `WebRoot`; instale e valide cada host separadamente. O passo a passo está em [Tutorial: locale PT-BR no AMP 2.8.0.10](tutorial-locale-pt-br.md).
+
 ## 13. Resumo de bolso (localização)
 
 - AMP 2.2.1+ documenta locales JSON e `?lang=xx`; a convenção publicada é ISO 639-1 de duas letras (`pt`), não `pt-BR`.
